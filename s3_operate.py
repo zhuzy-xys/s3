@@ -185,7 +185,7 @@ def upload(conn, ini):
     if bucket == "":
         bucket = "speech-datacollection"
 
-    fileordir   = getConfig(ini, "upload", "fileordir")
+    fileordir = getConfig(ini, "upload", "fileordir")
     mode   = getConfig(ini, "upload", "mode")
     if mode == "":
         mode == "dir"
@@ -201,6 +201,7 @@ def upload(conn, ini):
         uploadnum = uploadnum + uploadBucket(conn, bucket, f, firstdir, mode = mode)
     print "[INFO]: upload finished"
     print "[INFO]: upload", uploadnum, "files"
+
 
 def usage():
     print r"[usage]: python %s (download|upload) conf.ini" % sys.argv[0]
@@ -225,10 +226,11 @@ if __name__ == '__main__':
 
     conn = getConnection(access_key, secret_key, host)
 
-    if sys.argv[1] == "download":
+    opr = sys.argv[1]
+    if opr == "download":
         #下载
         download(conn, ini)
-    elif sys.argv[1] == "upload":
+    elif opr == "upload":
         #上传
         upload(conn, ini)
     else:
