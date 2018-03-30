@@ -19,6 +19,10 @@ def readConfig(inifile):
     return ini
 
 
+def __strformat__(fmt, *arg):
+    return fmt % arg
+
+
 #返回相应参数，没有则返回 ""
 #param:ini 文件名 section key
 #全部按照str类型读取
@@ -213,7 +217,7 @@ def upload(conn, ini):
         firstdir = "resource"
 
     overwrite = getConfig(ini, "upload", "overwrite")
-    if overwrite == "":
+    if overwrite != "1":
         overwrite = "0"
     
     fordlist = fileordir.split(";")
