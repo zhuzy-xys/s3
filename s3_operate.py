@@ -78,7 +78,7 @@ def downloadBucket(conn, hbucketname, path = "", prefix = "", hfilter = None):
                 os.makedirs(fpath)
 
             print "[INFO]: downloading", fsplit[-1]
-            #key.get_contents_to_filename(filename)
+            key.get_contents_to_filename(filename)
             filenum = filenum + 1
     except Exception as e:
         print "[ERR]:", e.message
@@ -90,11 +90,13 @@ def downloadBucket(conn, hbucketname, path = "", prefix = "", hfilter = None):
 #                 --文件模式即上传单个文件
 #filepath表示需要上传文件的路径
 #上传之后的文件路径为    bucket/fdir/dirname/filename (filename为单个文件名，不带文件夹,dirname为上一级目录名)
-def uploadBucket(conn, hbucketname, filepath, fdir, mode = "dir", recursive = None):
+#RETURN  a(上传的文件数量), b(跳过的文件数量)
+def uploadBucket(conn, hbucketname, filepath, fdir, mode = "dir", overwrite = "0", recursive = None):
     if conn is None:
         print r"no connection avaliable, param 'conn' can't be None"
         return
     filenum = 0
+    fileskipnum = 0
     #uploadsize = 0
     try:
         bucket, _ = __getBucketlist__(conn, hbucketname)
@@ -112,38 +114,53 @@ def uploadBucket(conn, hbucketname, filepath, fdir, mode = "dir", recursive = No
                 if not os.path.isfile(rfile) or f.startswith("."):
                     continue
 
-                k = Key(bucket)
                 rfilepath = filepath.split("/")[-1]
-                k.name = "{fdir}/{dirname}/{filename}".format(
+                keyname = "{fdir}/{dirname}/{filename}".format(
                     fdir = fdir,
                     #date = date,
                     dirname = rfilepath,
                     filename = f
                     )
+                #增加开关控制是否跳过同名文件，还是覆盖
+                if overwrite != "1" and bucket.get_key(keyname) is not None:
+                    print keyname, "exists skip"
+                    fileskipnum = fileskipnum + 1
+                    continue
+                k = Key(bucket)
+                k.name = keyname
+                
                 print "[INFO]: uploading", f
-                #k.set_contents_from_filename(rfile)
+                k.set_contents_from_filename(rfile)
                 filenum = filenum + 1
         elif mode == "file" and os.path.isfile(filepath):
             #上传单个文件
-            k = Key(bucket)
+            
             #rfile = filepath.split("/")
             #if rfile.startswith("/"):
             #    rfile = rfile[1:]
             dirname = filepath.split("/")[-2]
             fname = filepath.split("/")[-1]
 
-            k.name = "{fdir}/{dirname}/{filename}".format(
+            keyname = "{fdir}/{dirname}/{filename}".format(
                     fdir = fdir,
                     dirname = dirname,
                     filename = fname
                     )
+            #增加开关控制是否跳过同名文件，还是覆盖
+            if overwrite != "1" and bucket.get_key(keyname) is not None:
+                print keyname, "exists skip"
+                fileskipnum = fileskipnum + 1
+                continue
+
+            k = Key(bucket)
+            k.name = keyname
             print "[INFO]: uploading", fname
-            #k.set_contents_from_filename(filepath)
+            k.set_contents_from_filename(filepath)
             filenum = filenum + 1
     except Exception as e:
         print "[ERR]:uploadBucket", e.message
     finally:
-        return filenum
+        return filenum, fileskipnum
 
 
 def download(conn, ini):
@@ -181,6 +198,7 @@ def download(conn, ini):
 
 def upload(conn, ini):
     uploadnum = 0
+    skipnum = 0
     bucket = getConfig(ini, "upload", "bucket")
     if bucket == "":
         bucket = "speech-datacollection"
@@ -193,14 +211,20 @@ def upload(conn, ini):
     firstdir = getConfig(ini, "upload", "dirname")
     if firstdir == "":
         firstdir = "resource"
+
+    overwrite = getConfig(ini, "upload", "overwrite")
+    if overwrite == "":
+        overwrite = "0"
     
     fordlist = fileordir.split(";")
     for f in fordlist:
         if f == "":
             continue
-        uploadnum = uploadnum + uploadBucket(conn, bucket, f, firstdir, mode = mode)
+        u, s = uploadBucket(conn, bucket, f, firstdir, overwrite = overwrite, mode = mode)
+        uploadnum = uploadnum + u
+        skipnum = skipnum + s
     print "[INFO]: upload finished"
-    print "[INFO]: upload", uploadnum, "files"
+    print "[INFO]: upload", uploadnum, "files, skip", skipnum, "files"
 
 
 def usage():
